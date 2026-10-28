@@ -56,6 +56,27 @@
       api().launchAppControl(control, 'org.tizen.art-app', function () { finish(null); }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
+  /* Switch to the first connected HDMI input when tv.window is available,
+     then open Samsung's TV viewer full screen. Without tv.window (e.g. inside
+     TizenBrew) the viewer opens on the last used input. */
+  function input(done) {
+    if (!api()) { unavailable(done); return; }
+    var t = window.tizen, opened = false;
+    function viewer() { if (opened) return; opened = true; launchApp('org.tizen.tv-viewer', done); }
+    try {
+      if (!t.tvwindow || !t.systeminfo) { viewer(); return; }
+      var guard = setTimeout(viewer, 3000);
+      t.systeminfo.getPropertyValue('VIDEOSOURCE', function (info) {
+        var src = null;
+        (info.connected || []).forEach(function (s) { if (!src && s.type === 'HDMI') src = s; });
+        if (!src) { clearTimeout(guard); viewer(); return; }
+        try {
+          t.tvwindow.setSource(src, function () { clearTimeout(guard); viewer(); },
+            function () { clearTimeout(guard); viewer(); }, 'MAIN');
+        } catch (err) { clearTimeout(guard); viewer(); }
+      }, function () { clearTimeout(guard); viewer(); });
+    } catch (err) { viewer(); }
+  }
   function home(done) { launchApp('com.samsung.tv.csfs', done); }
   function settings(done) { launchApp('com.samsung.tv.coba.setting', done); }
   function apps(done) {
@@ -80,5 +101,5 @@
       }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
-  window.FrameDevice = { launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps };
+  window.FrameDevice = { launch: launch, launchApp: launchApp, input: input, art: art, home: home, settings: settings, apps: apps };
 }());
