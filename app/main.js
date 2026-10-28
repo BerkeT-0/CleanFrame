@@ -49,7 +49,8 @@
   var VALUE_NAMES = { dark: 'Dark', light: 'Light', photo: 'Photo', list: 'List', dock: 'Dock', type: 'Type', glass: 'Glass', soft: 'Soft', frost: 'Frost', tint: 'Clear tint', icons: 'Icons', both: 'Icons and text', text: 'Text' };
   var UTIL = { input: ['TV & HDMI', 'input'], art: ['Art Mode', 'art'], apps: ['All apps', 'apps'], arrange: ['Arrange', 'arrange'], settings: ['Settings', 'settings'] };
   var MSG = {
-    leave: { title: 'Leave Home?', line: 'Open Samsung Home?', note: '', actions: [['stay', 'Stay'], ['samsung', 'Samsung Home']] }
+    leave: { title: 'Leave Home?', line: 'Open Samsung Home?', note: '', actions: [['stay', 'Stay'], ['samsung', 'Samsung Home']] },
+    input: { title: 'TV & HDMI', line: 'Choose an input', note: '', actions: [['hdmi1', 'HDMI 1 \u00b7 PS5'], ['hdmi2', 'HDMI 2'], ['hdmi3', 'HDMI 3'], ['hdmi4', 'HDMI 4'], ['usb', 'USB']] }
   };
   var SVG = {
     input: '<rect x="3" y="5" width="18" height="11.5" rx="1.8"/><path d="M9 20h6M12 16.5V20"/>',
@@ -499,7 +500,7 @@
     return { prev: v ? 'up' : 'left', next: v ? 'down' : 'right', out: v ? 'right' : 'up', inn: v ? 'left' : 'down' };
   }
   function utilAction(u) {
-    if (u === 'input') perform('TV & HDMI', FrameDevice.input);
+    if (u === 'input') openMessage('input');
     else if (u === 'art') perform('Art Mode', FrameDevice.art);
     else if (u === 'apps') openApps();
     else openSettings();
@@ -959,7 +960,12 @@
       if (k === 'left') t.f.b = Math.max(0, t.f.b - 1);
       else if (k === 'right') t.f.b = Math.min(A.length - 1, t.f.b + 1);
       else if (k === 'back') pop();
-      else if (k === 'ok') { a = A[t.f.b][0]; pop(); if (a === 'samsung') perform('Samsung Home', FrameDevice.home); }
+      else if (k === 'ok') {
+        a = A[t.f.b][0]; pop();
+        if (a === 'samsung') perform('Samsung Home', FrameDevice.home);
+        else if (/^hdmi\d$/.test(a)) perform(A[t.f.b][1], function (done) { FrameDevice.source('HDMI', Number(a.slice(4)), done); });
+        else if (a === 'usb') perform('USB', function (done) { FrameDevice.source('USB', null, done); });
+      }
     },
     point: function (t, z, i) { if (z === 'act') { t.f.b = i; this.key(t, 'ok'); } }
   };

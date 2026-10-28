@@ -103,6 +103,32 @@
       }, function () { clearTimeout(guard); viewer(); });
     } catch (err) { viewer(); }
   }
+  /* Switch to one input (type 'HDMI' + number, or 'USB'), then open Samsung's
+     TV viewer full screen. Needs tv.window, so it works in the installed app;
+     inside TizenBrew it falls back to the viewer on the last used input. */
+  function sourceName(s) { return s.type + (s.number ? ' ' + s.number : ''); }
+  function source(type, number, done) {
+    if (bridged()) { launchApp('org.tizen.tv-viewer', done); return; }
+    if (!api()) { unavailable(done); return; }
+    var t = window.tizen, finish = bounded(done, 10000);
+    if (!t.tvwindow || !t.systeminfo) { finish({ message: 'This TV does not allow input selection here.', detail: 'Install CleanFrame as its own app to switch inputs.' }); return; }
+    try {
+      t.systeminfo.getPropertyValue('VIDEOSOURCE', function (info) {
+        var all = (info.connected || []).concat(info.disconnected || []), src = null, names = [];
+        all.forEach(function (s) {
+          names.push(sourceName(s));
+          if (src) return;
+          if (type === 'USB' ? (s.type === 'USB' || s.type === 'MEDIA') : (s.type === type && s.number === number)) src = s;
+        });
+        if (!src) { finish({ message: (type === 'USB' ? 'USB' : type + ' ' + number) + ' is not reported by the TV.', detail: 'Reported inputs: ' + (names.join(', ') || 'none') }); return; }
+        try {
+          t.tvwindow.setSource(src, function () {
+            api().launch('org.tizen.tv-viewer', function () { finish(null); }, function () { finish(null); });
+          }, function (err) { finish(failure(err)); }, 'MAIN');
+        } catch (err) { finish(failure(err)); }
+      }, function (err) { finish(failure(err)); });
+    } catch (err) { finish(failure(err)); }
+  }
   function home(done) { launchApp('com.samsung.tv.csfs', done); }
   function settings(done) { launchApp('com.samsung.tv.coba.setting', done); }
   function apps(done) {
@@ -137,5 +163,5 @@
         result.sort(function (a, b) { return a.rank - b.rank || a.name.toLowerCase().localeCompare(b.name.toLowerCase()); });
         return result;
   }
-  window.FrameDevice = { launch: launch, launchApp: launchApp, input: input, art: art, home: home, settings: settings, apps: apps };
+  window.FrameDevice = { launch: launch, launchApp: launchApp, input: input, source: source, art: art, home: home, settings: settings, apps: apps };
 }());
